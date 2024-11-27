@@ -123,6 +123,7 @@ class QueryPayload(BaseModel):
 
 @router.post("/generate_stream")
 async def generate_response_stream(payload: QueryPayload):
+    print("The data locations ---_______------", dataLocation[fileNames])
     try:
 
         query = payload.query  # Extract the query from the JSON payload
@@ -152,46 +153,47 @@ async def generate_response_stream(payload: QueryPayload):
 # import uuid
 
 
-@router.post("/chat_sessions", response_model=schemas.ChatSessionOut)
-def create_chat_session(user_id: uuid.UUID, session_name: str = None, is_force:bool = False, db: Session = Depends(get_db)):
-    # Create a new chat session
-    if is_force:
-        active_sessions = db.query(models.ChatSession).filter(
-        models.ChatSession.user_id == user_id, models.ChatSession.is_active == True ).all()
+# @router.post("/chat_sessions", response_model=schemas.ChatSessionOut)
+# def create_chat_session(user_id: uuid.UUID, session_name: str = None, is_force:bool = False, db: Session = Depends(get_db)):
+#     # Create a new chat session
+#     if is_force:
+#         active_sessions = db.query(models.ChatSession).filter(
+#         models.ChatSession.user_id == user_id, models.ChatSession.is_active == True ).all()
 
-        if active_sessions:
-            for session in active_sessions:
-                session.is_active=False
-                db.add(session)
-        if active_sessions:
-            db.commit()
-         # Create a new session forceFully
-        active_session = models.ChatSession(user_id=user_id, session_name=session_name)
-        db.add(active_session)
-        db.commit()
-        db.refresh(active_session)
-    active_session = db.query(models.ChatSession).filter(
-        models.ChatSession.user_id == user_id, models.ChatSession.is_active == True ).first()   
-    if not active_session:
-        # Create a new session
-        active_session = models.ChatSession(user_id=user_id, session_name=session_name)
-        db.add(active_session)
-        db.commit()
-        db.refresh(active_session)
+#         if active_sessions:
+#             for session in active_sessions:
+#                 session.is_active=False
+#                 db.add(session)
+#         if active_sessions:
+#             db.commit()
+#          # Create a new session forceFully
+#         active_session = models.ChatSession(user_id=user_id, session_name=session_name)
+#         db.add(active_session)
+#         db.commit()
+#         db.refresh(active_session)
+#     active_session = db.query(models.ChatSession).filter(
+#         models.ChatSession.user_id == user_id, models.ChatSession.is_active == True ).first()   
+#     if not active_session:
+#         # Create a new session
+#         active_session = models.ChatSession(user_id=user_id, session_name=session_name)
+#         db.add(active_session)
+#         db.commit()
+#         db.refresh(active_session)
 
-    return active_session
+#     return active_session
 
 
 @router.post("/chat_sessions", response_model=schemas.ChatSessionOut)
 def create_chat_session(
-    user_id: uuid.UUID, 
-    session_name: str = None, 
-    is_force: bool = False, 
+    # user_id: uuid.UUID, 
+    # session_name: str = None, 
+    # is_force: bool = False,
+    sessionData:schemas.ChatSessionBase ,
     db: Session = Depends(get_db)
 ):
     # Deactivate all active sessions for the user
     active_sessions = db.query(models.ChatSession).filter(
-        models.ChatSession.user_id == user_id, 
+        models.ChatSession.user_id == sessionData.user_id, 
         models.ChatSession.is_active == True
     ).all()
 
@@ -206,8 +208,8 @@ def create_chat_session(
 
     # Create a new session
     new_session = models.ChatSession(
-        user_id=user_id, 
-        session_name=session_name, 
+        user_id=sessionData.user_id, 
+        session_name=sessionData.session_name, 
         is_active=True
     )
     db.add(new_session)  # Add the new session
@@ -217,14 +219,123 @@ def create_chat_session(
     return new_session
 
 
+# @router.put("/update_session", response_model=schemas.ChatSessionOut)
+# def create_chat_session(
+#     user_id: uuid.UUID, 
+#     session_id: str = None, 
+#     # is_force: bool = False, 
+#     db: Session = Depends(get_db)
+# ):
+#     # Deactivate all active sessions for the user
+#     active_sessions = db.query(models.ChatSession).filter(
+#         models.ChatSession.user_id == user_id, 
+#         models.ChatSession.is_active == True
+#     ).all()
+
+#     if active_sessions:
+#         for session in active_sessions:
+#             session.is_active = False  # Deactivate each active session
+#             db.add(session)  # Mark the session for update
+
+#     # Commit the deactivation changes to the database
+#     if active_sessions:
+#         db.commit()
+
+#     # Create a new session
+#     current_session = db.query(models.ChatSession).filter(
+#         models.ChatSession.user_id==user_id,
+#         models.ChatSession.session_id==session_id
+#     ).first()
+#     if current_session:
+#         current_session.is_active=True
+#         db.add(current_session)  # Add the new session
+#         db.commit()  # Save the changes
+#         db.refresh(current_session)  # Refresh to get the updated session object
+
+#         return current_session
+
+
+@router.put("/update_session", response_model=schemas.ChatSessionOut)
+def update_chat_session(
+    updateData:schemas.UpdateChatSession,
+    db: Session = Depends(get_db)
+):
+    """
+    Update or create a chat session for the given user.
+
+    Args:
+        user_id (UUID): The user's unique identifier.
+        session_id (Optional[str]): The session ID to activate. If not provided, no session will be created.
+        db (Session): The database session dependency.
+
+    Returns:
+        schemas.ChatSessionOut: The updated or newly created chat session.
+    """
+    # Fetch all active sessions for the user
+    active_sessions = db.query(models.ChatSession).filter(
+        models.ChatSession.user_id == updateData.user_id,
+        models.ChatSession.is_active == True
+    ).all()
+
+    try:
+        # Deactivate all active sessions
+        for session in active_sessions:
+            session.is_active = False
+            db.add(session)
+
+        if active_sessions:
+            db.commit()
+
+        if not updateData.session_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Session ID must be provided to activate a new session."
+            )
+
+        # Fetch or create the current session
+        current_session = db.query(models.ChatSession).filter(
+            models.ChatSession.user_id == updateData.user_id,
+            models.ChatSession.session_id == updateData.session_id
+        ).first()
+
+        if current_session:
+        
+            current_session.is_active = True
+            db.add(current_session)
+
+        db.commit()
+        db.refresh(current_session)
+
+        return current_session
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while updating the session: {str(e)}"
+        )
+
+
 
 @router.get("/session_perUser/{user_id}", response_model=List[schemas.ChatSessionOut])
 def read_sessionPer_user(user_id:uuid.UUID,db:Session=Depends(get_db)):
-    user_session=db.query(models.ChatSession).filter(models.ChatSession.user_id==user_id).all()
+    user_session=db.query(models.ChatSession).filter(models.ChatSession.user_id==user_id).order_by(models.ChatSession.updated_at.desc()).all()
     if user_session:
         return user_session
     # raise HTTPException(status_code=409, detail="No session history for this user ")
-    raise HTTPException(status_code=409, detail="No session history for this user")
+    raise HTTPException(status_code=404, detail="No session history for this user")
+
+@router.get("/active_session/{user_id}", response_model=schemas.ChatSessionData)
+def read_sessionPer_user(user_id:uuid.UUID,db:Session=Depends(get_db)):
+    try:
+        user_session=db.query(models.ChatSession).filter(models.ChatSession.user_id==user_id ,
+        models.ChatSession.is_active==True).order_by(models.ChatSession.updated_at.desc()).first()
+        if user_session:
+            return HTTPException(status_code=200, detail={"messages":"Success", "data":user_session})
+        # raise HTTPException(status_code=409, detail="No session history for this user ")
+        return HTTPException(status_code=200, detail={"messages":"No session for the give users", "data":None})
+    except Exception as ex:
+        raise HTTPException(status_code=200, detail={"messages":"No session history for this user","data":None})
 
 @router.post("/messages", response_model=schemas.MessageOut)
 def save_message(request:schemas.MessageCreate, db: Session = Depends(get_db)):
@@ -296,21 +407,6 @@ def get_chat_history(
     }
 
 
-# @router.post("/employee/", response_model=schemas.Employee)
-# def register_employee(employee_data:schemas.Employee,db:Session=Depends(get_db)):
-#     try:
-#         check_employee=db.query(models.Employee).filter(models.Employee.employ_id==employee_data.employ_id).first()
-#         if check_employee:
-#             raise HTTPException(status_code=409, detail="Employee already registered")
-#         # Add the employee (unpack the data using **)
-#         add_employee = models.Employee(**employee_data.dict())
-#         db.add(add_employee)
-#         db.commit()
-#         db.refresh(add_employee)
-#         return add_employee
-#     except Exception as e:
-#         logging.error(f'An internal error: {e}')
-#         raise HTTPException(status_code=500, detail="An internal error")
     
 @router.post("/employee/", response_model=schemas.Employee)
 def register_employee(employee_data: schemas.Employee, db: Session = Depends(get_db)):

@@ -75,20 +75,31 @@ class TokenData(BaseModel):
 
 # Pydantic Models for ChatSession
 class ChatSessionBase(BaseModel):
-    session_name: Optional[str]  # Optional field for session name
+    user_id: uuid.UUID
+    session_name: str = None
 
-class ChatSessionCreate(ChatSessionBase):
-    user_id:  uuid.UUID
+# class ChatSessionCreate(ChatSessionBase):
+#     is_force: bool = False
+
+class UpdateChatSession(BaseModel):
+    user_id:uuid.UUID
+    session_id:uuid.UUID
 
 class ChatSessionOut(ChatSessionBase):
     session_id:  uuid.UUID
-    user_id:  uuid.UUID
     created_at: datetime
     updated_at: datetime
     is_active: bool
 
     class Config:
         orm_mode = True
+class ResponseFromat(BaseModel):
+    messages:str
+    data:Optional[ChatSessionOut]=None
+
+
+class ChatSessionData(BaseModel):
+    detail:ResponseFromat
 
 # Pydantic Models for Message
 class MessageBase(BaseModel):

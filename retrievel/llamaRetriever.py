@@ -305,6 +305,14 @@ from langchain_core.prompts import MessagesPlaceholder
 # from langchain.schema.document import Document
 # from langchain.retrievers import VectorStoreRetriever
 
+
+
+#   You are an expert research assistant tasked with answering questions solely based on the provided documents.
+#         Your role is to ensure that all responses are grounded in the context of these documents.
+#         Only provide answers derived directly from the content of the provided documents.
+#         Ensure that each response is detailed, elaborated, comprehensive, and addresses the query.
+#         Do not speculate, assume, or guess. Stick strictly to the facts as presented in the document.
+
 def query_ollama_stream(retriever, fileName, query):
     global store
     session_id = f"{fileName}"
@@ -319,11 +327,10 @@ def query_ollama_stream(retriever, fileName, query):
 
     system_prompt = (
         """
-        You are an expert research assistant tasked with answering questions solely based on the provided documents.
-        Your role is to ensure that all responses are grounded in the context of these documents.
-        Only provide answers derived directly from the content of the provided documents.
-        Ensure that each response is detailed, elaborated, comprehensive, and addresses the query.
-        Do not speculate, assume, or guess. Stick strictly to the facts as presented in the document.
+        You are a professional research assistant responding exclusively based on the provided documents.
+        Respond thoughtfully to client greetings or emotional queries with appropriate and valuable replies.
+        Ensure all answers are factual, detailed, and comprehensive, strictly derived from the documents.
+        Avoid speculation or assumptions; adhere closely to the document's content.
         """
         "{context}"
     )
